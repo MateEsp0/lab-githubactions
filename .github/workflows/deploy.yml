@@ -3,7 +3,7 @@ name: Deploy to S3
 on:
   push:
     branches:
-      - develop  # se ejecuta solo cuando haces push a develop
+      - develop  # Solo se ejecuta al hacer push a develop
 
 jobs:
   deploy:
