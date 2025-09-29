@@ -1,23 +1,50 @@
-name: Deploy to S3
+name: Deploy Static Site to S3
 
 on:
   push:
     branches:
-      - develop  # Solo se ejecuta al hacer push a develop
+      - develop
+      - staging
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Deploy to S3
+      - name: Set S3 Bucket based on branch
+        id: bucket
         run: |
-          aws s3 cp ./ s3://$S3_BUCKET --recursive --acl public-read --exclude ".git/*" --exclude ".github/*"
+          if [ "${GITHUB_REF##*/}" == "develop" ]; then
+            echo "bucket_name=dev-gha-webapp-mateo" >> $GITHUB_ENV
+          elif [ "${GITHUB_REF##*/}" == "staging" ]; then
+            echo "bucket_name=stg-gha-webapp-mateo" >> $GITHUB_ENV
+          elif [ "${GITHUB_REF##*/}" == "main" ]; then
+            echo "bucket_name=prod-gha-webapp-mateo" >> $GITHUB_ENV
+          else
+            echo "Unsupported branch for deployment."
+            exit 1
+          fi
+
+      - name: Verify AWS credentials
+        run: |
+          aws sts get-caller-identity
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          S3_BUCKET: ${{ secrets.S3_BUCKET_DEV }}
+          AWS_REGION: us-east-1
+
+      - name: Deploy to S3
+        run: |
+          aws s3 cp ./ s3://$bucket_name \
+            --recursive \
+            --acl public-read \
+            --exclude ".git/*" \
+            --exclude ".github/*"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1
